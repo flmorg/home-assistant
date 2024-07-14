@@ -1,0 +1,81 @@
+deployment:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    maxSurge: 1
+    maxUnavailable: 0
+  containers:
+    - name: home-assistant
+      image:
+        repository: ghcr.io/home-assistant/home-assistant
+        tag: stable
+      ports:
+        - name: http
+          containerPort: 8123
+      env:
+        - name: TZ
+          value: Europe/Bucharest
+      resources:
+        requests:
+          cpu: 0m
+          memory: 0Mi
+        limits:
+          cpu: 2000m
+          memory: 2000Mi
+      volumeMounts:
+        - name: storage
+          mountPath: /config
+          subPath: home-assistant/config
+        - name: storage-dbus
+          mountPath: /run/dbus:ro
+      securityContext:
+        privileged: true
+  volumes:
+    - name: storage
+      type: pvc
+      typeName: storage-pvc
+    - name: storage-dbus
+      type: pvc
+      typeName: storage-dbus-pvc
+
+# infisicalSecrets:
+#   - name: infisical-certificates
+#     serviceTokenSecretName: service-token
+#     secretsPath: /certificates
+#     secretName: tls-secret
+#     secretType: kubernetes.io/tls
+
+# ingress:
+#   name: ingress
+#   hosts:
+#     - host: ha.@vault(secrets/data/domain main | DOMAIN_NAME)
+#       paths:
+#         - path: "/"
+#           pathType: Prefix
+#           serviceName: service
+#           servicePort: http
+#   tls:
+#     secretName: tls-secret
+
+pvcs:
+  - name: storage-pvc
+    storageClassName: local-path-persistent
+    accessModes:
+      - ReadWriteOnce
+    size: 1Gi
+    volumeMode: Filesystem
+  - name: storage-dbus-pvc
+    storageClassName: local-path-dbus
+    accessModes:
+      - ReadWriteOnce
+    size: 1Gi
+    volumeMode: Filesystem
+
+services:
+  - name: service
+    type: ClusterIP
+    ports:
+      - name: http
+        protocol: TCP
+        port: 80
+        targetPort: http
